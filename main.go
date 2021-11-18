@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"flag"
 )
 
@@ -11,15 +11,14 @@ func main() {
 	flag.IntVar(&udpPort, "p", 49161, "UDP port to use")
 	flag.Parse()
 
-	recvChannel := make(chan string)
+	recvChannel := make(chan []byte)
 	go ListenForUDPInLoop(udpPort, recvChannel)
 
 	for {
 		data, ok := <-recvChannel
 		if !ok {
-			println("Channel closed")
-			return
+			log.Fatal("UDP Channel has closed")
 		}
-		fmt.Printf("Data received: %v\n", data)
+		log.Printf("Data received: %v\n", data)
 	}
 }

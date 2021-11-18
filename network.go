@@ -1,25 +1,25 @@
 package main
 
 import (
-	"os"
+	"log"
 	"fmt"
 	"net"
 )
 
-func ListenForUDPInLoop(port int, recvChannel chan string) {
-	println("Creating UDP connection")
+func ListenForUDPInLoop(port int, recvChannel chan []byte) {
+	log.Printf("Creating UDP connection\n")
 	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", port))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving UDP address: %v\n", err)
+		log.Printf("Error resolving UDP address: %v\n", err)
 		return
 	}
 	conn, err := net.ListenUDP("udp4", addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error receiving UDP connection: %v\n", err)
+		log.Printf("Error receiving UDP connection: %v\n", err)
 		return
 	}
 
-	println("Created UDP connection")
+	log.Printf("Created UDP connection\n")
 	for {
 		var buf [1024]byte
 		dataRead, _, err := conn.ReadFromUDP(buf[:])
@@ -27,11 +27,10 @@ func ListenForUDPInLoop(port int, recvChannel chan string) {
 	}
 }
 
-func handleUDPData(data []byte, err error, recvChannel chan string) {
-	fmt.Printf("handleUDPData: %s\n", string(data))
+func handleUDPData(data []byte, err error, recvChannel chan []byte) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading UDP message: %v\n", err)
+		log.Printf("Error reading UDP message: %v\n", err)
 	} else {
-		recvChannel <- string(data)
+		recvChannel <- data
 	}
 }
