@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+
+	"github.com/lollek/iosynth/soundServer"
 )
 
 func main() {
@@ -14,7 +16,7 @@ func main() {
 	recvChannel := make(chan []byte)
 	go ListenForUDPInLoop(udpPort, recvChannel)
 
-	if err := InitSoundServer(); err != nil {
+	if err := soundServer.Init(); err != nil {
 		log.Fatalf("Sound server failed to start: %v", err)
 	}
 

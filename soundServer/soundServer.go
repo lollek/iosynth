@@ -1,4 +1,4 @@
-package main
+package soundServer
 
 import (
 	"io"
@@ -11,6 +11,10 @@ var (
 	players []oto.Player
 	m       sync.Mutex
 	context *oto.Context
+
+	SampleRate      int = 44100
+	ChannelNum      int = 2
+	BitDepthInBytes int = 2
 )
 
 func PlaySound(sound io.Reader) {
@@ -21,8 +25,8 @@ func PlaySound(sound io.Reader) {
 	m.Unlock()
 }
 
-func InitSoundServer() error {
-	c, ready, err := oto.NewContext(sampleRate, channelNum, bitDepthInBytes)
+func Init() error {
+	c, ready, err := oto.NewContext(SampleRate, ChannelNum, BitDepthInBytes)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 	"time"
+
+	"github.com/lollek/iosynth/soundServer"
 )
 
 func HandleData(data []byte) {
@@ -12,14 +14,8 @@ func HandleData(data []byte) {
 	freq := 523.3
 	duration := 3 * time.Second
 	sound := NewSineWave(freq, duration)
-	PlaySound(sound)
+	soundServer.PlaySound(sound)
 }
-
-var (
-	sampleRate      int = 44100
-	channelNum      int = 2
-	bitDepthInBytes int = 2
-)
 
 type SineWave struct {
 	freq   float64
@@ -30,7 +26,7 @@ type SineWave struct {
 }
 
 func NewSineWave(freq float64, duration time.Duration) *SineWave {
-	l := int64(channelNum) * int64(bitDepthInBytes) * int64(sampleRate) * int64(duration) / int64(time.Second)
+	l := int64(soundServer.ChannelNum) * int64(soundServer.BitDepthInBytes) * int64(soundServer.SampleRate) * int64(duration) / int64(time.Second)
 	l = l / 4 * 4
 	return &SineWave{
 		freq:   freq,
@@ -62,16 +58,16 @@ func (s *SineWave) Read(buf []byte) (int, error) {
 		buf = make([]byte, len(origBuf)+4-len(origBuf)%4)
 	}
 
-	length := float64(sampleRate) / float64(s.freq)
+	length := float64(soundServer.SampleRate) / float64(s.freq)
 
-	num := (bitDepthInBytes) * (channelNum)
+	num := (soundServer.BitDepthInBytes) * (soundServer.ChannelNum)
 	p := s.pos / int64(num)
-	switch bitDepthInBytes {
+	switch soundServer.BitDepthInBytes {
 	case 1:
 		for i := 0; i < len(buf)/num; i++ {
 			const max = 127
 			b := int(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
-			for ch := 0; ch < channelNum; ch++ {
+			for ch := 0; ch < soundServer.ChannelNum; ch++ {
 				buf[num*i+ch] = byte(b + 128)
 			}
 			p++
@@ -80,7 +76,7 @@ func (s *SineWave) Read(buf []byte) (int, error) {
 		for i := 0; i < len(buf)/num; i++ {
 			const max = 32767
 			b := int16(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
-			for ch := 0; ch < channelNum; ch++ {
+			for ch := 0; ch < soundServer.ChannelNum; ch++ {
 				buf[num*i+2*ch] = byte(b)
 				buf[num*i+1+2*ch] = byte(b >> 8)
 			}
