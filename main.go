@@ -1,8 +1,8 @@
 package main
 
 import (
-	"log"
 	"flag"
+	"log"
 )
 
 func main() {
@@ -14,11 +14,16 @@ func main() {
 	recvChannel := make(chan []byte)
 	go ListenForUDPInLoop(udpPort, recvChannel)
 
+	if err := InitSoundServer(); err != nil {
+		log.Fatalf("Sound server failed to start: %v", err)
+	}
+
 	for {
 		data, ok := <-recvChannel
 		if !ok {
 			log.Fatal("UDP Channel has closed")
+		} else {
+			HandleData(data)
 		}
-		log.Printf("Data received: %v\n", data)
 	}
 }
