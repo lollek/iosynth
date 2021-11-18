@@ -1,4 +1,4 @@
-package soundServer
+package soundserver
 
 import (
 	"io"

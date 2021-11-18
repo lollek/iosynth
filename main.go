@@ -4,7 +4,8 @@ import (
 	"flag"
 	"log"
 
-	"github.com/lollek/iosynth/soundServer"
+	"github.com/lollek/iosynth/soundserver"
+	"github.com/lollek/iosynth/mixer"
 )
 
 func main() {
@@ -16,7 +17,7 @@ func main() {
 	recvChannel := make(chan []byte)
 	go ListenForUDPInLoop(udpPort, recvChannel)
 
-	if err := soundServer.Init(); err != nil {
+	if err := soundserver.Init(); err != nil {
 		log.Fatalf("Sound server failed to start: %v", err)
 	}
 
@@ -25,7 +26,8 @@ func main() {
 		if !ok {
 			log.Fatal("UDP Channel has closed")
 		} else {
-			HandleData(data)
+			log.Printf("Data received: %v\n", string(data))
+			mixer.RawCommand(data)
 		}
 	}
 }
