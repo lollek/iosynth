@@ -2,14 +2,11 @@ package soundserver
 
 import (
 	"io"
-	"sync"
 
 	"github.com/hajimehoshi/oto/v2"
 )
 
 var (
-	players []oto.Player
-	m       sync.Mutex
 	context *oto.Context
 
 	SampleRate      int = 44100
@@ -18,11 +15,7 @@ var (
 )
 
 func PlaySound(sound io.Reader) {
-	p := context.NewPlayer(sound)
-	p.Play()
-	m.Lock()
-	players = append(players, p)
-	m.Unlock()
+	context.NewPlayer(sound).Play()
 }
 
 func Init() error {

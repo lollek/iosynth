@@ -38,7 +38,7 @@ func parseCommand(command string) {
 		octave += 1
 	}
 
-	if !(('A' <= note && note <= 'G') || ('a' <= note && note <= 'G')) {
+	if !(('A' <= note && note <= 'G') || ('a' <= note && note <= 'g')) {
 		return
 	}
 
@@ -78,7 +78,7 @@ func parseCommand(command string) {
 	}
 
 	freq := octave2list[octave][note2index[note]]
-	duration := 500 * time.Millisecond
+	duration := 250 * time.Millisecond
 	sound := sound.NewSineWave(freq, duration)
 	soundserver.PlaySound(sound)
 }
