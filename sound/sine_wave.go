@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 	"time"
+	"sync"
 
 	"github.com/lollek/iosynth/soundserver"
 )
@@ -15,24 +16,28 @@ const (
 type SoundWave struct {
 	freq   float64
 	length int64
-	pos    int64
+	mutex  sync.Mutex
 
+	pos    int64
 	remaining []byte
 }
 
 func NewSoundWave(freq float64, duration time.Duration) *SoundWave {
 	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
+
 	return &SoundWave{
 		freq:   freq,
-		length: (bitRate * int64(duration)) / int64(time.Second),
+		length: (((bitRate * int64(duration)) / int64(time.Second)) / 4) * 4,
 	}
 }
 
 func (s *SoundWave) Read(buf []byte) (int, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if len(s.remaining) > 0 {
 		n := copy(buf, s.remaining)
-		copy(s.remaining, s.remaining[n:])
-		s.remaining = s.remaining[:len(s.remaining)-n]
+		s.remaining = s.remaining[n:]
 		return n, nil
 	}
 

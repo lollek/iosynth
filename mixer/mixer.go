@@ -77,6 +77,7 @@ func parseCommand(command string) {
 		8: [12]float64{4186.01, 4434.92, 4698.63, 4978.03, 5274.04, 5587.65, 5919.91, 6271.93, 6644.88, 7040.00, 7458.62, 7902.13,},
 	}
 
+
 	freq := octave2list[octave][note2index[note]]
 	duration := 250 * time.Millisecond
 	sound := sound.NewSoundWave(freq, duration)
