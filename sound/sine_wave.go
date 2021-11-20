@@ -19,15 +19,17 @@ type SoundWave struct {
 	mutex  sync.Mutex
 
 	pos    int64
-	remaining []byte
 }
 
 func NewSoundWave(freq float64, duration time.Duration) *SoundWave {
 	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
-
+	length := (bitRate * int64(duration)) / int64(time.Second)
+	if length%4 != 0 {
+		length -= length%4
+	}
 	return &SoundWave{
 		freq:   freq,
-		length: (((bitRate * int64(duration)) / int64(time.Second)) / 4) * 4,
+		length: length,
 	}
 }
 
@@ -35,64 +37,53 @@ func (s *SoundWave) Read(buf []byte) (int, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if len(s.remaining) > 0 {
-		n := copy(buf, s.remaining)
-		s.remaining = s.remaining[n:]
-		return n, nil
-	}
-
-	if s.pos == s.length {
+	if s.pos >= s.length {
 		return 0, io.EOF
 	}
 
 	eof := false
-	if s.pos+int64(len(buf)) > s.length {
+	if s.pos+int64(len(buf)) >= s.length {
 		buf = buf[:s.length-s.pos]
 		eof = true
 	}
 
-	var origBuf []byte
-	if len(buf)%4 > 0 {
-		origBuf = buf
-		buf = make([]byte, len(origBuf)+4-len(origBuf)%4)
+	bufLen := len(buf)
+	if bufLen%4 > 0 {
+		buf = buf[:bufLen - bufLen%4]
+		bufLen = len(buf)
 	}
 
 	length := float64(soundserver.SampleRate) / float64(s.freq)
 
-	num := (soundserver.BitDepthInBytes) * (numChannels)
-	p := s.pos / int64(num)
+	bufferSegmentSize := soundserver.BitDepthInBytes * numChannels
+	posOnSoundWave := s.pos / int64(bufferSegmentSize)
+	numSegmentsInBuffer := bufLen/bufferSegmentSize
 	switch soundserver.BitDepthInBytes {
 	case 1:
-		for i := 0; i < len(buf)/num; i++ {
+		for i := 0; i < numSegmentsInBuffer; i++ {
 			const max = 127
-			b := int(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
+			b := int(math.Sin(2*math.Pi*float64(posOnSoundWave)/length) * 0.3 * max)
 			for ch := 0; ch < numChannels; ch++ {
-				buf[num*i+ch] = byte(b + 128)
+				buf[i*bufferSegmentSize+ch] = byte(b + 128)
 			}
-			p++
+			posOnSoundWave++
 		}
 	case 2:
-		for i := 0; i < len(buf)/num; i++ {
+		for i := 0; i < numSegmentsInBuffer; i++ {
 			const max = 32767
-			b := int16(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
+			b := int16(math.Sin(2*math.Pi*float64(posOnSoundWave)/length) * 0.3 * max)
 			for ch := 0; ch < numChannels; ch++ {
-				buf[num*i+2*ch] = byte(b)
-				buf[num*i+1+2*ch] = byte(b >> 8)
+				buf[i*bufferSegmentSize+2*ch] = byte(b)
+				buf[i*bufferSegmentSize+1+2*ch] = byte(b >> 8)
 			}
-			p++
+			posOnSoundWave++
 		}
 	}
 
-	s.pos += int64(len(buf))
-
-	n := len(buf)
-	if origBuf != nil {
-		n = copy(origBuf, buf)
-		s.remaining = buf[n:]
-	}
+	s.pos += int64(bufLen)
 
 	if eof {
-		return n, io.EOF
+		return bufLen, io.EOF
 	}
-	return n, nil
+	return bufLen, nil
 }
