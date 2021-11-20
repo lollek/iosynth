@@ -1,6 +1,10 @@
 all: build
 .PHONY: all
 
+run:	build
+	./iosynth
+.PHONY: run
+
 build:
 	go build
 .PHONY: build

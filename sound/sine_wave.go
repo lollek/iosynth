@@ -8,7 +8,11 @@ import (
 	"github.com/lollek/iosynth/soundserver"
 )
 
-type SineWave struct {
+const (
+	numChannels = 2
+)
+
+type SoundWave struct {
 	freq   float64
 	length int64
 	pos    int64
@@ -16,16 +20,15 @@ type SineWave struct {
 	remaining []byte
 }
 
-func NewSineWave(freq float64, duration time.Duration) *SineWave {
-	l := int64(soundserver.ChannelNum) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate) * int64(duration) / int64(time.Second)
-	l = l / 4 * 4
-	return &SineWave{
+func NewSoundWave(freq float64, duration time.Duration) *SoundWave {
+	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
+	return &SoundWave{
 		freq:   freq,
-		length: l,
+		length: (bitRate * int64(duration)) / int64(time.Second),
 	}
 }
 
-func (s *SineWave) Read(buf []byte) (int, error) {
+func (s *SoundWave) Read(buf []byte) (int, error) {
 	if len(s.remaining) > 0 {
 		n := copy(buf, s.remaining)
 		copy(s.remaining, s.remaining[n:])
@@ -51,14 +54,14 @@ func (s *SineWave) Read(buf []byte) (int, error) {
 
 	length := float64(soundserver.SampleRate) / float64(s.freq)
 
-	num := (soundserver.BitDepthInBytes) * (soundserver.ChannelNum)
+	num := (soundserver.BitDepthInBytes) * (numChannels)
 	p := s.pos / int64(num)
 	switch soundserver.BitDepthInBytes {
 	case 1:
 		for i := 0; i < len(buf)/num; i++ {
 			const max = 127
 			b := int(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
-			for ch := 0; ch < soundserver.ChannelNum; ch++ {
+			for ch := 0; ch < numChannels; ch++ {
 				buf[num*i+ch] = byte(b + 128)
 			}
 			p++
@@ -67,7 +70,7 @@ func (s *SineWave) Read(buf []byte) (int, error) {
 		for i := 0; i < len(buf)/num; i++ {
 			const max = 32767
 			b := int16(math.Sin(2*math.Pi*float64(p)/length) * 0.3 * max)
-			for ch := 0; ch < soundserver.ChannelNum; ch++ {
+			for ch := 0; ch < numChannels; ch++ {
 				buf[num*i+2*ch] = byte(b)
 				buf[num*i+1+2*ch] = byte(b >> 8)
 			}
