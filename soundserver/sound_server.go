@@ -2,6 +2,7 @@ package soundserver
 
 import (
 	"io"
+	"time"
 
 	"github.com/hajimehoshi/oto/v2"
 )
@@ -13,8 +14,16 @@ var (
 	BitDepthInBytes int = 2
 )
 
-func PlaySound(sound io.Reader) {
-	context.NewPlayer(sound).Play()
+func PlaySound(duration time.Duration, sound io.Reader) {
+	player := context.NewPlayer(sound)
+	player.Play()
+	go func() {
+		// It seems like we need to manually close all Players, or we
+		// get missing notes from time to time. See
+		// https://github.com/lollek/iosynth/issues/2
+		time.Sleep(duration)
+		player.Close()
+	}()
 }
 
 func Init() error {

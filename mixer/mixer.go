@@ -81,5 +81,5 @@ func parseCommand(command string) {
 	freq := octave2list[octave][note2index[note]]
 	duration := 250 * time.Millisecond
 	sound := sound.NewSoundWave(freq, duration)
-	soundserver.PlaySound(sound)
+	soundserver.PlaySound(duration, sound)
 }
