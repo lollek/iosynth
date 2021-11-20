@@ -4,8 +4,8 @@ import (
 	"flag"
 	"log"
 
-	"github.com/lollek/iosynth/soundserver"
 	"github.com/lollek/iosynth/mixer"
+	"github.com/lollek/iosynth/soundserver"
 )
 
 func main() {
