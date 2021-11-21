@@ -13,15 +13,26 @@ const (
 	numChannels = 2
 )
 
+type WaveFn func(phasePosition float64) float64
+
 type SoundWave struct {
 	freq   float64
 	length int64
+	waveFn func(float64) float64
 	mutex  sync.Mutex
 
 	pos    int64
 }
 
-func NewSoundWave(freq float64, duration time.Duration) *SoundWave {
+func SineWaveFn(phasePosition float64) float64 {
+	return math.Sin(2 * math.Pi * phasePosition)
+}
+
+func SawtoothWaveFn(phasePosition float64) float64 {
+	return 1.0 - phasePosition * 2
+}
+
+func NewSoundWave(freq float64, duration time.Duration, waveFn WaveFn) *SoundWave {
 	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
 	length := (bitRate * int64(duration)) / int64(time.Second)
 	if length%4 != 0 {
@@ -30,10 +41,11 @@ func NewSoundWave(freq float64, duration time.Duration) *SoundWave {
 	return &SoundWave{
 		freq:   freq,
 		length: length,
+		waveFn: waveFn,
 	}
 }
 
-func (s *SoundWave) Read(buf []byte) (int, error) {
+func (s *SoundWave) Read(buf []byte) (bytesRead int, err error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -41,49 +53,48 @@ func (s *SoundWave) Read(buf []byte) (int, error) {
 		return 0, io.EOF
 	}
 
-	eof := false
+	// Shorten the buffer if we are near the end
 	if s.pos+int64(len(buf)) >= s.length {
 		buf = buf[:s.length-s.pos]
-		eof = true
 	}
 
+	// Align the buffer to 4 bytes.
 	bufLen := len(buf)
 	if bufLen%4 > 0 {
 		buf = buf[:bufLen - bufLen%4]
 		bufLen = len(buf)
 	}
 
+	// Fill buffer with data
 	length := float64(soundserver.SampleRate) / float64(s.freq)
-
 	bufferSegmentSize := soundserver.BitDepthInBytes * numChannels
 	posOnSoundWave := s.pos / int64(bufferSegmentSize)
 	numSegmentsInBuffer := bufLen/bufferSegmentSize
-	switch soundserver.BitDepthInBytes {
-	case 1:
-		for i := 0; i < numSegmentsInBuffer; i++ {
-			const max = 127
-			b := int(math.Sin(2*math.Pi*float64(posOnSoundWave)/length) * 0.3 * max)
+
+	for i := 0; i < numSegmentsInBuffer; i++ {
+		const vol = 0.3
+		phasePosition := float64(posOnSoundWave)/length
+		waveData := s.waveFn(phasePosition) * vol
+		switch soundserver.BitDepthInBytes {
+		case 1:
+			const max = 0x7F
+			b := int(waveData * max)
 			for ch := 0; ch < numChannels; ch++ {
-				buf[i*bufferSegmentSize+ch] = byte(b + 128)
+				buf[i*bufferSegmentSize+ch] = byte(b + 0x80)
 			}
-			posOnSoundWave++
-		}
-	case 2:
-		for i := 0; i < numSegmentsInBuffer; i++ {
-			const max = 32767
-			b := int16(math.Sin(2*math.Pi*float64(posOnSoundWave)/length) * 0.3 * max)
+		case 2:
+			const max = 0x7FFF
+			b := int16(waveData * max)
 			for ch := 0; ch < numChannels; ch++ {
 				buf[i*bufferSegmentSize+2*ch] = byte(b)
 				buf[i*bufferSegmentSize+1+2*ch] = byte(b >> 8)
 			}
-			posOnSoundWave++
 		}
+		posOnSoundWave++
 	}
+
 
 	s.pos += int64(bufLen)
 
-	if eof {
-		return bufLen, io.EOF
-	}
 	return bufLen, nil
 }
