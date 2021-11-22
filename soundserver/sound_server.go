@@ -27,7 +27,7 @@ func PlaySound(duration time.Duration, sound io.Reader) {
 }
 
 func Init() error {
-	c, ready, err := oto.NewContext(SampleRate, /* number of channels */ 2, BitDepthInBytes)
+	c, ready, err := oto.NewContext(SampleRate, 2 /* number of channels */, BitDepthInBytes)
 	if err != nil {
 		return err
 	}

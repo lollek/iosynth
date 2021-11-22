@@ -3,8 +3,8 @@ package sound
 import (
 	"io"
 	"math"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/lollek/iosynth/soundserver"
 )
@@ -13,30 +13,53 @@ const (
 	numChannels = 2
 )
 
-type WaveFn func(phasePosition float64) float64
+type WaveFn func(tick, ticksPerCycle float64) float64
 
 type SoundWave struct {
 	freq   float64
 	length int64
-	waveFn func(float64) float64
+	waveFn WaveFn
 	mutex  sync.Mutex
 
-	pos    int64
+	pos int64
 }
 
-func SineWaveFn(phasePosition float64) float64 {
-	return math.Sin(2 * math.Pi * phasePosition)
+func SineWaveFn(tick, ticksPerCycle float64) float64 {
+	return math.Sin(2 * math.Pi * (tick / ticksPerCycle))
 }
 
-func SawtoothWaveFn(phasePosition float64) float64 {
-	return 1.0 - phasePosition * 2
+func SquareWaveFn(tick, ticksPerCycle float64) float64 {
+	halfACycle := int(ticksPerCycle) / 2
+	tickOfCycle := int(tick) % int(ticksPerCycle)
+	if tickOfCycle < halfACycle {
+		return 1
+	} else {
+		return -1
+	}
+}
+
+func TriangleWaveFn(tick, ticksPerCycle float64) float64 {
+	halfACycle := int(ticksPerCycle) / 2
+	tickOfCycle := int(tick) % int(ticksPerCycle)
+	percentageOfCycle := float64(tickOfCycle) / ticksPerCycle
+	if tickOfCycle < halfACycle {
+		return (-1 + percentageOfCycle*4)
+	} else {
+		return (1 - (percentageOfCycle-0.5)*4)
+	}
+}
+
+func SawtoothWaveFn(tick, ticksPerCycle float64) float64 {
+	tickOfCycle := int(tick) % int(ticksPerCycle)
+	percentageOfCycle := float64(tickOfCycle) / ticksPerCycle
+	return (-1 + percentageOfCycle*2)
 }
 
 func NewSoundWave(freq float64, duration time.Duration, waveFn WaveFn) *SoundWave {
 	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
 	length := (bitRate * int64(duration)) / int64(time.Second)
 	if length%4 != 0 {
-		length -= length%4
+		length += 4 - length%4
 	}
 	return &SoundWave{
 		freq:   freq,
@@ -53,7 +76,8 @@ func (s *SoundWave) Read(buf []byte) (bytesRead int, err error) {
 		return 0, io.EOF
 	}
 
-	// Shorten the buffer if we are near the end
+	// Shorten the buffer if we don't need to calculate data for the whole
+	// buffer (e.g. if we are nearing the end)
 	if s.pos+int64(len(buf)) >= s.length {
 		buf = buf[:s.length-s.pos]
 	}
@@ -61,38 +85,36 @@ func (s *SoundWave) Read(buf []byte) (bytesRead int, err error) {
 	// Align the buffer to 4 bytes.
 	bufLen := len(buf)
 	if bufLen%4 > 0 {
-		buf = buf[:bufLen - bufLen%4]
+		buf = buf[:bufLen-bufLen%4]
 		bufLen = len(buf)
 	}
 
 	// Fill buffer with data
-	length := float64(soundserver.SampleRate) / float64(s.freq)
-	bufferSegmentSize := soundserver.BitDepthInBytes * numChannels
-	posOnSoundWave := s.pos / int64(bufferSegmentSize)
-	numSegmentsInBuffer := bufLen/bufferSegmentSize
+	ticksPerCycle := float64(soundserver.SampleRate) / float64(s.freq)
+	tickDataSize := soundserver.BitDepthInBytes * numChannels
+	tick := s.pos / int64(tickDataSize)
+	ticksInBuffer := bufLen / tickDataSize
 
-	for i := 0; i < numSegmentsInBuffer; i++ {
-		const vol = 0.3
-		phasePosition := float64(posOnSoundWave)/length
-		waveData := s.waveFn(phasePosition) * vol
+	for i := 0; i < ticksInBuffer; i++ {
+		const amp = 0.3
+		waveData := s.waveFn(float64(tick), ticksPerCycle) * amp
 		switch soundserver.BitDepthInBytes {
 		case 1:
 			const max = 0x7F
 			b := int(waveData * max)
 			for ch := 0; ch < numChannels; ch++ {
-				buf[i*bufferSegmentSize+ch] = byte(b + 0x80)
+				buf[i*tickDataSize+ch] = byte(b + 0x80)
 			}
 		case 2:
 			const max = 0x7FFF
 			b := int16(waveData * max)
 			for ch := 0; ch < numChannels; ch++ {
-				buf[i*bufferSegmentSize+2*ch] = byte(b)
-				buf[i*bufferSegmentSize+1+2*ch] = byte(b >> 8)
+				buf[i*tickDataSize+2*ch] = byte(b)
+				buf[i*tickDataSize+1+2*ch] = byte(b >> 8)
 			}
 		}
-		posOnSoundWave++
+		tick++
 	}
-
 
 	s.pos += int64(bufLen)
 
