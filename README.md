@@ -17,5 +17,6 @@ Tracks:
 * 1: Square wave
 * 2: Triangle wave
 * 3: Sawtooth wave
+* 4: Random noise
 
 Note that it's still very much work in progress.

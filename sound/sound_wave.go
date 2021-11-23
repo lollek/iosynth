@@ -3,6 +3,7 @@ package sound
 import (
 	"io"
 	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -32,9 +33,9 @@ func SquareWaveFn(tick, ticksPerCycle float64) float64 {
 	halfACycle := int(ticksPerCycle) / 2
 	tickOfCycle := int(tick) % int(ticksPerCycle)
 	if tickOfCycle < halfACycle {
-		return 1
+		return 0.5
 	} else {
-		return -1
+		return -0.5
 	}
 }
 
@@ -52,7 +53,11 @@ func TriangleWaveFn(tick, ticksPerCycle float64) float64 {
 func SawtoothWaveFn(tick, ticksPerCycle float64) float64 {
 	tickOfCycle := int(tick) % int(ticksPerCycle)
 	percentageOfCycle := float64(tickOfCycle) / ticksPerCycle
-	return (-1 + percentageOfCycle*2)
+	return 1 - percentageOfCycle*2
+}
+
+func NoiseWaveFn(tick, ticksPerCycle float64) float64 {
+	return 1 - rand.Float64() + rand.Float64()
 }
 
 func NewSoundWave(freq float64, duration time.Duration, waveFn WaveFn) *SoundWave {

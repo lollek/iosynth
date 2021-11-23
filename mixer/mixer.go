@@ -50,6 +50,7 @@ var (
 		1: sound.SquareWaveFn,
 		2: sound.TriangleWaveFn,
 		3: sound.SawtoothWaveFn,
+		4: sound.NoiseWaveFn,
 	}
 )
 
