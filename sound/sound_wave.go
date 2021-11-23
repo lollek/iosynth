@@ -12,6 +12,7 @@ import (
 
 const (
 	numChannels = 2
+	bitDepthInBytes = 2
 )
 
 type WaveFn func(tick, ticksPerCycle float64) float64
@@ -61,7 +62,7 @@ func NoiseWaveFn(tick, ticksPerCycle float64) float64 {
 }
 
 func NewSoundWave(freq float64, duration time.Duration, waveFn WaveFn) *SoundWave {
-	bitRate := int64(numChannels) * int64(soundserver.BitDepthInBytes) * int64(soundserver.SampleRate)
+	bitRate := int64(numChannels) * int64(bitDepthInBytes) * int64(soundserver.SampleRate)
 	length := (bitRate * int64(duration)) / int64(time.Second)
 	if length%4 != 0 {
 		length += 4 - length%4
@@ -96,27 +97,18 @@ func (s *SoundWave) Read(buf []byte) (bytesRead int, err error) {
 
 	// Fill buffer with data
 	ticksPerCycle := float64(soundserver.SampleRate) / float64(s.freq)
-	tickDataSize := soundserver.BitDepthInBytes * numChannels
+	tickDataSize := bitDepthInBytes * numChannels
 	tick := s.pos / int64(tickDataSize)
 	ticksInBuffer := bufLen / tickDataSize
 
 	for i := 0; i < ticksInBuffer; i++ {
 		const amp = 0.3
 		waveData := s.waveFn(float64(tick), ticksPerCycle) * amp
-		switch soundserver.BitDepthInBytes {
-		case 1:
-			const max = 0x7F
-			b := int(waveData * max)
-			for ch := 0; ch < numChannels; ch++ {
-				buf[i*tickDataSize+ch] = byte(b + 0x80)
-			}
-		case 2:
-			const max = 0x7FFF
-			b := int16(waveData * max)
-			for ch := 0; ch < numChannels; ch++ {
-				buf[i*tickDataSize+2*ch] = byte(b)
-				buf[i*tickDataSize+1+2*ch] = byte(b >> 8)
-			}
+		const max = 0x7FFF
+		b := int16(waveData * max)
+		for ch := 0; ch < numChannels; ch++ {
+			buf[i*tickDataSize+2*ch] = byte(b)
+			buf[i*tickDataSize+1+2*ch] = byte(b >> 8)
 		}
 		tick++
 	}

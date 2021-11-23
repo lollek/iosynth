@@ -11,7 +11,6 @@ var (
 	context *oto.Context
 
 	SampleRate      int = 44100
-	BitDepthInBytes int = 2
 )
 
 func PlaySound(duration time.Duration, sound io.Reader) {
@@ -27,7 +26,9 @@ func PlaySound(duration time.Duration, sound io.Reader) {
 }
 
 func Init() error {
-	c, ready, err := oto.NewContext(SampleRate, 2 /* number of channels */, BitDepthInBytes)
+	const numberOfChannels = 2 // Stereo
+	const bitDepthInBytes = 2 // 16 bit
+	c, ready, err := oto.NewContext(SampleRate, numberOfChannels, bitDepthInBytes)
 	if err != nil {
 		return err
 	}
